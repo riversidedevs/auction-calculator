@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Auction Calculator",
+    "slug": "auction-calculator",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "newArchEnabled": true
+          }
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-9247710286493186~4041726559",
+          "iosAppId": "ca-app-pub-xxxxxxxxxxxxxxxx~xxxxxxxxxx"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.auctioncalculator"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a2e52"
+      },
+      "package": "com.yourname.auctioncalculator"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "746332ed-e006-4b24-ab14-391798436c35"
+      }
+    }
+  }
+}
