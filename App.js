@@ -269,7 +269,7 @@ function CalculatorScreen({state,dispatch,onMenuOpen}){
             <Text style={s.lotDesc} numberOfLines={1}>{lot?.desc??(activeList?'All lots done':'No list loaded')}</Text>
           </View>
           <BudgetBar hp={hp} maxWorth={maxWorth} currency={currency} onPressMax={()=>setModal({t:'SET_WORTH'})}/>
-        </View>
+        </TouchableOpacity>
         <View style={s.costPad}>
           <View style={s.totalBox}><Text style={s.totalLbl}>Total cost (inc. all fees)</Text><Text style={s.totalAmt}>{currency}{tc.toFixed(2)}</Text></View>
           <TouchableOpacity style={s.hammerBox} onPress={()=>setModal({t:'SET_HP'})} activeOpacity={0.85}>
