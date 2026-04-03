@@ -132,6 +132,17 @@ dist
 !.yarn/plugins
 !.yarn/releases
 !.yarn/sdks
+# Expo
+.expo/
+.expo-shared/
+
+# Build output
+dist/
+build/
+
+# Native folders (Expo managed)
+android/
+ios/
 !.yarn/versions
 
 # Vite logs files
