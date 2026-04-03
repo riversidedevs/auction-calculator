@@ -2,7 +2,7 @@
   "expo": {
     "name": "Auction Calculator",
     "slug": "auction-calculator",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": [
@@ -10,6 +10,8 @@
         "expo-build-properties",
         {
           "android": {
+            "targetSdkVersion": 35,
+            "compileSdkVersion": 35,
             "newArchEnabled": true
           }
         }

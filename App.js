@@ -262,7 +262,7 @@ function CalculatorScreen({state,dispatch,onMenuOpen}){
         <Text style={s.navTitle}>Auction Calculator</Text>
       </View>
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
-        <View style={s.lotBlock}>
+        <TouchableOpacity style={s.lotBlock} onPress={()=>dispatch({type:'SET_SCREEN',screen:'listOpen'})} activeOpacity={0.75}>
           <View style={s.lotStrip}>
             <View style={s.pill}><Text style={s.pillTxt}>List <Text style={s.pillBold}>#{currentLotIdx+1}</Text></Text></View>
             <View style={s.pill}><Text style={s.pillTxt}>Lot <Text style={s.pillBold}>#{lot?.lot??'—'}</Text></Text></View>
@@ -368,13 +368,64 @@ function CompleteScreen({state,dispatch}){
   );
 }
 
+// ── List Preview Modal ───────────────────────────────────────────────────────
+function ListPreviewModal({list,currency,commPct,vatPct,onLoad,onCancel}){
+  if(!list) return null;
+  const won=list.lots.filter(l=>l.purchased===true).length;
+  const tot=list.lots.reduce((s,l)=>s+(l.purchased&&l.hp!=null?calcTCLot(l.hp,l,commPct,vatPct):0),0);
+  const pending=list.lots.filter(l=>l.purchased===null).length;
+  return(
+    <Modal visible={!!list} transparent animationType='slide'>
+      <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.45)',justifyContent:'flex-end'}}>
+        <View style={{backgroundColor:C.white,borderTopLeftRadius:16,borderTopRightRadius:16,maxHeight:'80%'}}>
+          <View style={{backgroundColor:C.navy,padding:16,borderTopLeftRadius:16,borderTopRightRadius:16,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+            <Text style={{color:C.white,fontSize:15,fontWeight:'600',flex:1}} numberOfLines={1}>{list.name}</Text>
+            <TouchableOpacity onPress={onCancel} style={{padding:4}}><Text style={{color:'#aac4e0',fontSize:16}}>✕</Text></TouchableOpacity>
+          </View>
+          <View style={{flexDirection:'row',padding:12,gap:8,borderBottomWidth:0.5,borderBottomColor:C.border}}>
+            {[{label:'Lots',val:list.lots.length,color:C.textPrimary},{label:'Pending',val:pending,color:C.infoBlue},{label:'Won',val:won,color:C.greenText},{label:'Spent',val:currency+tot.toFixed(0),color:C.textPrimary}].map((item,i)=>(
+              <View key={i} style={{flex:1,backgroundColor:'#f8f8f8',borderRadius:8,padding:8,alignItems:'center'}}>
+                <Text style={{fontSize:9,color:C.textTertiary,marginBottom:2}}>{item.label}</Text>
+                <Text style={{fontSize:15,fontWeight:'600',color:item.color}}>{item.val}</Text>
+              </View>
+            ))}
+          </View>
+          <ScrollView style={{maxHeight:320}}>
+            {list.lots.map((lot,i)=>{
+              const statusColor=lot.purchased===true?C.greenText:lot.purchased===false?C.textTertiary:C.infoBlue;
+              const statusLabel=lot.purchased===true?'Won':lot.purchased===false?'Lost':'Pending';
+              return(
+                <View key={i} style={{flexDirection:'row',alignItems:'center',paddingVertical:10,paddingHorizontal:14,borderBottomWidth:0.5,borderBottomColor:C.border,backgroundColor:i%2===1?'#f8f8f8':C.white}}>
+                  <Text style={{width:36,fontSize:11,color:C.textTertiary}}>#{lot.lot}</Text>
+                  <Text style={{flex:1,fontSize:13,color:C.textPrimary}} numberOfLines={1}>{lot.desc}</Text>
+                  <Text style={{fontSize:11,color:C.textSecond,marginRight:8}}>{currency}{lot.maxWorth}</Text>
+                  <Text style={{fontSize:11,color:statusColor,fontWeight:'600',width:48,textAlign:'right'}}>{statusLabel}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+          <View style={{flexDirection:'row',gap:8,padding:14}}>
+            <TouchableOpacity style={{flex:1,backgroundColor:'#f0f0f0',borderRadius:9,padding:13,alignItems:'center'}} onPress={onCancel}>
+              <Text style={{color:C.textSecond,fontSize:14,fontWeight:'500'}}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{flex:2,backgroundColor:C.navy,borderRadius:9,padding:13,alignItems:'center'}} onPress={onLoad}>
+              <Text style={{color:C.white,fontSize:14,fontWeight:'600'}}>▶  Load this list</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ── List Select ───────────────────────────────────────────────────────────────
 function ListSelectScreen({lists,currency,commPct,vatPct,onSelect,onBack}){
+  const [preview,setPreview]=useState(null);
   const ri=({item})=>{
     const won=item.lots.filter(l=>l.purchased===true).length;
     const tot=item.lots.reduce((s,l)=>s+(l.purchased&&l.hp!=null?calcTCLot(l.hp,l,commPct,vatPct):0),0);
     return(
-      <TouchableOpacity style={s.listItem} onPress={()=>onSelect(item)} activeOpacity={0.75}>
+      <TouchableOpacity style={s.listItem} onPress={()=>setPreview(item)} activeOpacity={0.75}>
         <View style={s.listIconBox}><Text style={{fontSize:24}}>📋</Text></View>
         <View style={{flex:1}}>
           <Text style={s.listName}>{item.name}</Text>
@@ -392,12 +443,16 @@ function ListSelectScreen({lists,currency,commPct,vatPct,onSelect,onBack}){
       </View>
       <FlatList data={lists} keyExtractor={i=>i.id} renderItem={ri}/>
       <AdBanner />
+      <ListPreviewModal list={preview} currency={currency} commPct={commPct} vatPct={vatPct}
+        onLoad={()=>{const item=preview;setPreview(null);onSelect(item);}}
+        onCancel={()=>setPreview(null)}/>
     </SafeAreaView>
   );
 }
 
 // ── Open List ─────────────────────────────────────────────────────────────────
-function OpenListScreen({list,currentLotIdx,currency,commPct,vatPct,onBack,onLoad,onExport}){
+function OpenListScreen({list,currentLotIdx,currency,commPct,vatPct,onBack,onLoad,onExport,onUpdateWorth}){
+  const [editWorth,setEditWorth]=useState(null);
   const won=list.lots.filter(l=>l.purchased===true).length;
   const tot=list.lots.reduce((s,l)=>s+(l.purchased&&l.hp!=null?calcTCLot(l.hp,l,commPct,vatPct):0),0);
   const ri=({item,index})=>{
@@ -412,7 +467,9 @@ function OpenListScreen({list,currentLotIdx,currency,commPct,vatPct,onBack,onLoa
         <Text style={[s.td,{width:110}]} numberOfLines={1}>{item.desc}</Text>
         <Text style={[s.td,{width:28}]}>{item.vat?'Y':'N'}</Text>
         <Text style={[s.td,{width:32}]}>{item.comm?'Y':'N'}</Text>
-        <Text style={[s.td,{width:60}]}>{currency}{item.maxWorth}</Text>
+        <TouchableOpacity onPress={()=>item.purchased===null&&setEditWorth({idx:index,val:item.maxWorth})} style={[s.td,{width:60}]}>
+          <Text style={{fontSize:10,color:item.purchased===null?C.infoBlue:C.textPrimary,textDecorationLine:item.purchased===null?'underline':'none'}}>{currency}{item.maxWorth}</Text>
+        </TouchableOpacity>
         <Text style={[s.td,{width:54}]}>{currency}{mb.toFixed(0)}</Text>
         <Text style={[s.td,{width:36},item.purchased===true&&s.tdYes,item.purchased===false&&s.tdNo]}>
           {item.purchased===true?'Yes':item.purchased===false?'No':'—'}
@@ -447,6 +504,48 @@ function OpenListScreen({list,currentLotIdx,currency,commPct,vatPct,onBack,onLoa
         <TouchableOpacity style={[s.tblBtn,s.tblBtnBlue]} onPress={onBack}><Text style={s.tblBtnBlueTxt}>‹ Calculator</Text></TouchableOpacity>
         <TouchableOpacity style={[s.tblBtn,s.tblBtnGreen]} onPress={onExport}><Text style={s.tblBtnGreenTxt}>↓ Export CSV</Text></TouchableOpacity>
       </View>
+      <AdBanner />
+      {editWorth&&<NumpadModal visible title={'Set Max Worth for lot '+list.lots[editWorth.idx]?.lot} initialValue={editWorth.val}
+        onConfirm={v=>{onUpdateWorth(editWorth.idx,v);setEditWorth(null);}} onCancel={()=>setEditWorth(null)}/>}
+    </SafeAreaView>
+  );
+}
+
+// ── About Screen ──────────────────────────────────────────────────────────────
+function AboutScreen({onBack}){
+  return(
+    <SafeAreaView style={s.safeArea}>
+      <View style={s.navbar}>
+        <TouchableOpacity onPress={onBack} style={s.backBtn}><Text style={s.backTxt}>‹ Back</Text></TouchableOpacity>
+        <Text style={s.navTitle}>About</Text>
+      </View>
+      <ScrollView>
+        <View style={{alignItems:'center',padding:30,borderBottomWidth:0.5,borderBottomColor:C.border}}>
+          <View style={{width:72,height:72,borderRadius:16,backgroundColor:C.navy,alignItems:'center',justifyContent:'center',marginBottom:14}}>
+            <Text style={{fontSize:32}}>🔨</Text>
+          </View>
+          <Text style={{fontSize:20,fontWeight:'600',color:C.textPrimary,marginBottom:4}}>Auction Calculator</Text>
+          <Text style={{fontSize:13,color:C.textTertiary}}>Version 1.0.0</Text>
+        </View>
+        <View style={{padding:20}}>
+          <Text style={{fontSize:13,color:C.textSecond,lineHeight:20,marginBottom:20,textAlign:'center'}}>
+            A tool for bidders to calculate total costs including commission and VAT, track lots, and manage auction lists.
+          </Text>
+          <View style={{borderWidth:0.5,borderColor:C.border,borderRadius:10,overflow:'hidden'}}>
+            <View style={{padding:14,borderBottomWidth:0.5,borderBottomColor:C.border,flexDirection:'row',justifyContent:'space-between'}}>
+              <Text style={{fontSize:13,color:C.textSecond}}>Developer</Text>
+              <Text style={{fontSize:13,color:C.textPrimary,fontWeight:'500'}}>Laurence</Text>
+            </View>
+            <View style={{padding:14,flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+              <Text style={{fontSize:13,color:C.textSecond}}>Feedback & support</Text>
+              <Text style={{fontSize:13,color:C.infoBlue,fontWeight:'500'}}>riversidedevs@gmail.com</Text>
+            </View>
+          </View>
+          <Text style={{fontSize:11,color:C.textTertiary,textAlign:'center',marginTop:20,lineHeight:16}}>
+            Your data is stored locally on your device only. No account required.
+          </Text>
+        </View>
+      </ScrollView>
       <AdBanner />
     </SafeAreaView>
   );
@@ -499,7 +598,7 @@ function BurgerMenu({visible,onClose,onAction}){
             <View style={{gap:5}}>{[0,1,2].map(i=><View key={i} style={s.burgerLine}/>)}</View>
             <Text style={{color:C.white,fontSize:14,fontWeight:'500',marginLeft:10}}>Menu</Text>
           </View>
-          {[{l:'Clear All',a:'clear'},{l:'Open List',a:'openList'},{l:'Create New',a:'createNew'},{l:'Export List',a:'export'},{l:'Settings',a:'settings'}].map(item=>(
+          {[{l:'Clear All',a:'clear'},{l:'Open List',a:'openList'},{l:'Create New',a:'createNew'},{l:'Export List',a:'export'},{l:'Settings',a:'settings'},{l:'About',a:'about'}].map(item=>(
             <TouchableOpacity key={item.a} style={s.menuItem} onPress={()=>{onClose();onAction(item.a);}} activeOpacity={0.75}>
               <Text style={s.menuItemTxt}>{item.l}</Text>
             </TouchableOpacity>
@@ -529,6 +628,10 @@ function reducer(state,action){
     case 'CLEAR_HP':return{...state,hp:0};
     case 'SET_SCREEN':return{...state,screen:action.screen};
     case 'ADD_LIST':return{...state,lists:[...state.lists,action.list]};
+    case 'UPDATE_LOT_WORTH':{
+      const lists=state.lists.map((l,li)=>li!==state.activeListIdx?l:{...l,lots:l.lots.map((lot,i)=>i===action.lotIdx?{...lot,maxWorth:action.value}:lot)});
+      return{...state,lists,activeList:lists[state.activeListIdx],maxWorth:state.currentLotIdx===action.lotIdx?action.value:state.maxWorth};
+    }
     case 'LOAD_LIST':{
       const list=state.lists[action.index];
       const fi=list.lots.findIndex(l=>l.purchased===null);
@@ -605,6 +708,7 @@ export default function App(){
     else if(a==='createNew')setCreateOpen(true);
     else if(a==='export')handleExport();
     else if(a==='settings')dispatch({type:'SET_SCREEN',screen:'settings'});
+    else if(a==='about')dispatch({type:'SET_SCREEN',screen:'about'});
   },[handleExport]);
 
   const {screen,lists,activeList,activeListIdx,currentLotIdx,currency,commPct,vatPct}=state;
@@ -627,8 +731,10 @@ export default function App(){
         currency={currency} commPct={commPct} vatPct={vatPct}
         onBack={()=>dispatch({type:'SET_SCREEN',screen:'calc'})}
         onLoad={()=>dispatch({type:'LOAD_LIST',index:activeListIdx})}
-        onExport={handleExport}/>}
+        onExport={handleExport}
+        onUpdateWorth={(lotIdx,val)=>dispatch({type:'UPDATE_LOT_WORTH',lotIdx,value:val})}/>}
       {screen==='settings'&&<SettingsScreen state={state} dispatch={dispatch} onBack={()=>dispatch({type:'SET_SCREEN',screen:'calc'})}/>}
+      {screen==='about'&&<AboutScreen onBack={()=>dispatch({type:'SET_SCREEN',screen:'calc'})}/>}
     </View>
   );
 }
